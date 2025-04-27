@@ -3,8 +3,9 @@ const rl = @import("raylib");
 const cl = @import("zclay");
 
 const renderer = @import("raylib_render_clay.zig");
+const entry_utils = @import("./entry_utils.zig");
 
-const fileList = @import("./components/file_list.zig");
+const entryList = @import("./components/entry_list.zig");
 
 fn loadFont(file_data: ?[]const u8, font_id: u16, font_size: i32) !void {
     renderer.raylib_fonts[font_id] = try rl.loadFontFromMemory(".ttf", file_data, font_size * 2, null);
@@ -18,12 +19,12 @@ fn loadImage(comptime path: [:0]const u8) !rl.Texture2D {
 }
 
 pub fn main() !void {
-    const allocator = std.heap.page_allocator;
+    const page_allocator = std.heap.page_allocator;
 
     // init clay
     const min_memory_size: u32 = cl.minMemorySize();
-    const memory = try allocator.alloc(u8, min_memory_size);
-    defer allocator.free(memory);
+    const memory = try page_allocator.alloc(u8, min_memory_size);
+    defer page_allocator.free(memory);
     const arena: cl.Arena = cl.createArenaWithCapacityAndMemory(memory);
     _ = cl.initialize(arena, .{ .h = 1000, .w = 1000 }, .{});
     cl.setMeasureTextFunction(void, {}, renderer.measureText);
@@ -39,6 +40,16 @@ pub fn main() !void {
 
     // load assets
     try loadFont(@embedFile("./resources/Roboto-Regular.ttf"), 0, 24);
+
+    // State
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var entries_arena = std.heap.ArenaAllocator.init(gpa.allocator());
+    defer entries_arena.deinit();
+    const entries_alloc = entries_arena.allocator();
+
+    var cwd = try std.fs.cwd().openDir("./", .{ .iterate = true });
+    const entries = try entry_utils.getEntriesProps(entries_alloc, cwd);
+    cwd.close();
 
     var debug_mode_enabled = false;
     while (!rl.windowShouldClose()) {
@@ -66,11 +77,14 @@ pub fn main() !void {
         });
 
         cl.beginLayout();
-        fileList.render();
+        const entryListProps: entryList.Props = .{
+            .entries = entries
+        };
+        entryList.render(entryListProps);
         var render_commands = cl.endLayout();
 
         rl.beginDrawing();
-        try renderer.clayRaylibRender(&render_commands, allocator);
+        try renderer.clayRaylibRender(&render_commands, page_allocator);
         rl.endDrawing();
     }
 }

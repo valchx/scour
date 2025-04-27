@@ -1,17 +1,22 @@
+const std = @import("std");
 const cl = @import("zclay");
 
 const theme = @import("../theme.zig");
 
-const file = @import("./file.zig");
+const entry = @import("./entry.zig");
 
-pub fn render() void {
+pub const Props = struct {
+    entries: []const entry.Props,
+};
+
+pub fn render(props: Props) void {
     cl.UI()(.{
-        .id = .ID("FileListOuterContainer"),
+        .id = .ID("EntryListOuterContainer"),
         .layout = .{ .direction = .left_to_right, .sizing = .grow, .padding = .all(16), .child_gap = 16 },
         .background_color = theme.background.primary,
     })({
         cl.UI()(.{
-            .id = .ID("FileList"),
+            .id = .ID("EntryList"),
             .layout = .{
                 .direction = .top_to_bottom,
                 .sizing = .{ .h = .grow, .w = .grow },
@@ -21,11 +26,9 @@ pub fn render() void {
             },
             .background_color = theme.background.secondary,
         })({
-            for (0..5) |i| file.render(.{
-                .name = "Some file",
-                .type = .file,
-                .selected = false,
-            }, @intCast(i));
+            for (props.entries, 0..) |entryProps, i| {
+                entry.render(entryProps, @intCast(i));
+            }
         });
     });
 }
