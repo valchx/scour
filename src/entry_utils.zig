@@ -1,13 +1,13 @@
 const std = @import("std");
 
-const entry = @import("./components/entry.zig");
+const Entry = @import("./components/entry.zig").Entry;
 
-pub fn getEntriesProps(allocator: std.mem.Allocator, dir: std.fs.Dir) ![]const entry.Props {
+pub fn getEntriesProps(allocator: std.mem.Allocator, dir: std.fs.Dir) ![] Entry {
     var iterator = dir.iterate();
-    var entries = std.ArrayList(entry.Props).init(allocator);
+    var entries = std.ArrayList(Entry).init(allocator);
 
     while (try iterator.next()) |dirEntry| {
-        const entryProps = entry.Props.init(try allocator.dupe(u8, dirEntry.name), dirEntry.kind);
+        const entryProps = Entry.init(try allocator.dupe(u8, dirEntry.name), dirEntry.kind);
         try entries.append(entryProps);
     }
 

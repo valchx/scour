@@ -3,10 +3,10 @@ const cl = @import("zclay");
 
 const theme = @import("../theme.zig");
 
-const entry = @import("./entry.zig");
+const Entry = @import("./entry.zig").Entry;
 
 pub const Props = struct {
-    entries: []const entry.Props,
+    entries: [] Entry,
 };
 
 pub fn render(props: Props) void {
@@ -26,8 +26,8 @@ pub fn render(props: Props) void {
             },
             .background_color = theme.background.secondary,
         })({
-            for (props.entries, 0..) |entryProps, i| {
-                entry.render(entryProps, @intCast(i));
+            for (props.entries, 0..) |entry, i| {
+                entry.render(@intCast(i));
             }
         });
     });
