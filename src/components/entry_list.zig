@@ -26,7 +26,7 @@ pub fn render(props: Props) void {
             },
             .background_color = theme.background.secondary,
         })({
-            for (props.entries, 0..) |entry, i| {
+            for (props.entries, 0..) |*entry, i| {
                 entry.render(@intCast(i));
             }
         });
