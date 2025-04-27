@@ -3,7 +3,7 @@ const cl = @import("zclay");
 
 const theme = @import("../theme.zig");
 
-const Entry = @import("./entry.zig").Entry;
+const Entry = @import("./entry.zig");
 
 pub const Props = struct {
     entries: [] Entry,

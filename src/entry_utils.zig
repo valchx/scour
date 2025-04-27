@@ -1,6 +1,6 @@
 const std = @import("std");
 
-const Entry = @import("./components/entry.zig").Entry;
+const Entry = @import("./components/entry.zig");
 
 pub fn getEntriesProps(allocator: std.mem.Allocator, dir: std.fs.Dir) ![] Entry {
     var iterator = dir.iterate();
