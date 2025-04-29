@@ -12,8 +12,8 @@ const Self = @This();
 name: []const u8,
 full_path: []const u8,
 kind: std.fs.Dir.Entry.Kind,
-selected: bool,
-hovered: bool,
+selected: bool = false,
+hovered: bool = false,
 last_click_time: ?i64 = null,
 entryList: *EntryList,
 _allocator: std.mem.Allocator,
@@ -30,8 +30,6 @@ pub fn init(
         .name = try allocator.dupe(u8, name),
         .full_path = try allocator.dupe(u8, full_path),
         .kind = kind,
-        .selected = false,
-        .hovered = false,
         .entryList = entryList,
     };
 }
@@ -67,7 +65,6 @@ fn onClick(self: *Self) !void {
     if (self.last_click_time) |last_click_time| {
         const double_click_time = std.time.milliTimestamp() - last_click_time;
         if (double_click_time < max_double_click_time_ms) {
-            std.debug.print("DoubleClickedTime : {}\n", .{double_click_time});
             try self.onDoubleClick();
             return;
         }

@@ -5,6 +5,7 @@ const rl = @import("raylib");
 const theme = @import("../theme.zig");
 
 const Entry = @import("./entry.zig");
+const ScrollBar = @import("./scroll_bar.zig");
 
 const Self = @This();
 
@@ -131,8 +132,6 @@ pub fn render(self: Self) !void {
         .layout = .{
             .direction = .left_to_right,
             .sizing = .{
-                // TODO : There must be a simpler way of doing this in clay
-                // .h = .fixed(@floatFromInt(rl.getScreenHeight())),
                 .h = .grow,
                 .w = .grow,
             },
@@ -142,37 +141,7 @@ pub fn render(self: Self) !void {
         .scroll = .{ .vertical = true },
         .background_color = theme.background.primary,
     })({
-        const scroll_delta = cl.getScrollContainerData(parent_id);
-        if (scroll_delta.content_dimensions.h > 0 and scroll_delta.content_dimensions.h > scroll_delta.scroll_container_dimensions.h) {
-            const y_offset = -(scroll_delta.scroll_position.y / scroll_delta.content_dimensions.h) * scroll_delta.scroll_container_dimensions.h;
-            const bar_height = (scroll_delta.scroll_container_dimensions.h / scroll_delta.content_dimensions.h) * scroll_delta.scroll_container_dimensions.h;
-            const bar_width = 20;
-            cl.UI()(
-                cl.ElementDeclaration{
-                    .id = cl.ElementId.localID("scroll-bar"),
-                    .floating = .{
-                        .attach_to = cl.FloatingAttachToElement.to_parent,
-                        .offset = .{
-                            .y = y_offset,
-                            .x = 0,
-                        },
-                        .zIndex = 1,
-                        .parentId = parent_id.id,
-                        .attach_points = .{
-                            .element = .right_top,
-                            .parent = .right_top,
-                        },
-                    },
-                    .layout = .{
-                        .sizing = .{
-                            .h = .fixed(bar_height),
-                            .w = .fixed(bar_width),
-                        },
-                    },
-                    .background_color = theme.entryItem.background.selected,
-                },
-            )({});
-        }
+        ScrollBar.init(parent_id).render();
 
         cl.UI()(.{
             .id = .ID("EntryList"),
