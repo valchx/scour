@@ -3,9 +3,8 @@ const rl = @import("raylib");
 const cl = @import("zclay");
 
 const renderer = @import("raylib_render_clay.zig");
-const entry_utils = @import("./entry_utils.zig");
 
-const entryList = @import("./components/entry_list.zig");
+const EntryList = @import("./components/entry_list.zig");
 
 fn loadFont(file_data: ?[]const u8, font_id: u16, font_size: i32) !void {
     renderer.raylib_fonts[font_id] = try rl.loadFontFromMemory(".ttf", file_data, font_size * 2, null);
@@ -34,7 +33,7 @@ pub fn main() !void {
         .msaa_4x_hint = true,
         .window_resizable = true,
     });
-    rl.initWindow(1000, 1000, "Scour");
+    rl.initWindow(1280, 820, "Scour");
     rl.setWindowMinSize(300, 100);
     rl.setTargetFPS(120);
 
@@ -43,13 +42,14 @@ pub fn main() !void {
 
     // State
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+
     var entries_arena = std.heap.ArenaAllocator.init(gpa.allocator());
     defer entries_arena.deinit();
-    const entries_alloc = entries_arena.allocator();
-
-    var cwd = try std.fs.cwd().openDir("./", .{ .iterate = true });
-    const entries = try entry_utils.getEntriesProps(entries_alloc, cwd);
-    cwd.close();
+    const entries_allocator = entries_arena.allocator();
+    var entries = try EntryList.init(entries_allocator);
+    defer entries.deinit();
+    const absolute_path = try std.fs.cwd().realpathAlloc(entries_allocator, "./");
+    try entries.changeDir(absolute_path);
 
     var debug_mode_enabled = false;
     while (!rl.windowShouldClose()) {
@@ -77,10 +77,7 @@ pub fn main() !void {
         });
 
         cl.beginLayout();
-        const entryListProps: entryList.Props = .{
-            .entries = entries
-        };
-        entryList.render(entryListProps);
+        try entries.render();
         var render_commands = cl.endLayout();
 
         rl.beginDrawing();

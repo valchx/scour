@@ -4,26 +4,40 @@ const rl = @import("raylib");
 
 const theme = @import("../theme.zig");
 
+const EntryList = @import("./entry_list.zig");
+
 const Self = @This();
 
-all_entries: []Self,
 name: []const u8,
+full_path: []const u8,
 kind: std.fs.Dir.Entry.Kind,
 selected: bool,
 hovered: bool,
+last_click_time: ?i64 = null,
+entryList: *EntryList,
+_allocator: std.mem.Allocator,
 
 pub fn init(
+    allocator: std.mem.Allocator,
     name: []const u8,
+    full_path: []const u8,
     kind: std.fs.Dir.Entry.Kind,
-    all_entries: []Self,
-) Self {
+    entryList: *EntryList,
+) !Self {
     return Self{
-        .name = name,
+        ._allocator = allocator,
+        .name = try allocator.dupe(u8, name),
+        .full_path = try allocator.dupe(u8, full_path),
         .kind = kind,
         .selected = false,
         .hovered = false,
-        .all_entries = all_entries,
+        .entryList = entryList,
     };
+}
+
+pub fn deinit(self: *Self) void {
+    self._allocator.free(self.name);
+    self._allocator.free(self.full_path);
 }
 
 fn getBackgroundColor(self: Self, hovered: bool) cl.Color {
@@ -38,17 +52,30 @@ fn getBackgroundColor(self: Self, hovered: bool) cl.Color {
     return theme.entryItem.background.default;
 }
 
-fn onClick(self: *@This()) void {
-    for (self.*.all_entries) |*entry| {
-        if (entry.*.selected) {
-            entry.*.selected = false;
+const max_double_click_time_ms = 200;
+
+fn onDoubleClick(self: Self) !void {
+    if (self.kind == .directory) {
+        try self.entryList.changeDir(self.full_path);
+    }
+}
+
+fn onClick(self: *Self) !void {
+    defer self.*.last_click_time = std.time.milliTimestamp();
+
+    if (self.last_click_time) |last_click_time| {
+        const double_click_time = std.time.milliTimestamp() - last_click_time;
+        if (double_click_time < max_double_click_time_ms) {
+            std.debug.print("DoubleClickedTime : {}\n", .{double_click_time});
+            try self.onDoubleClick();
+            return;
         }
     }
 
-    self.*.selected = true;
+    self.entryList.selectEntry(self);
 }
 
-pub fn render(self: *Self, index: u32) void {
+pub fn render(self: *Self, index: u32) !void {
     const id = cl.ElementId.IDI("Entry-", index);
     cl.UI()(cl.ElementDeclaration{
         .id = id,
@@ -57,16 +84,16 @@ pub fn render(self: *Self, index: u32) void {
             .padding = .{ .left = 16 },
             .child_alignment = .{ .x = .left, .y = .center },
         },
-        .background_color = self.*.getBackgroundColor(cl.hovered()),
+        .background_color = self.getBackgroundColor(cl.hovered()),
     })({
         if (rl.isMouseButtonPressed(.left) and cl.pointerOver(id)) {
-            self.onClick();
+            try self.onClick();
         }
 
         self.hovered = cl.pointerOver(id);
 
-        cl.text(self.*.name, .{ .font_size = 24, .color = theme.entryItem.text.primary });
-        if (self.*.kind == .directory) {
+        cl.text(self.name, .{ .font_size = 24, .color = theme.entryItem.text.primary });
+        if (self.kind == .directory) {
             cl.text("/", .{ .font_size = 24, .color = theme.entryItem.text.primary });
         }
     });
