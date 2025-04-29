@@ -14,6 +14,7 @@ _allocator: std.mem.Allocator,
 entries: std.ArrayList(*Entry),
 next_entries: ?std.ArrayList(*Entry) = null,
 absolute_path: ?[]const u8 = null,
+cwd_input: ?CwdInput = null,
 
 /// To set the `absolute_path` field, call `changeDir`
 pub fn init(
@@ -61,6 +62,7 @@ pub fn computeEntries(self: *Self) void {
         self.deinitEntries();
         self.*.entries = next_entries;
         self.*.next_entries = null;
+        self.*.cwd_input = CwdInput.init(self._allocator, self.absolute_path.?);
     }
 }
 
@@ -126,7 +128,7 @@ fn computeNextEntries(
     }
 }
 
-pub fn render(self: Self) !void {
+pub fn render(self: *Self) !void {
     const outer_container_id = cl.ElementId.ID("EntryListOuterContainer");
     const outer_padding = 16;
     cl.UI()(cl.ElementDeclaration{
@@ -142,7 +144,8 @@ pub fn render(self: Self) !void {
         },
         .background_color = theme.background.primary,
     })({
-        CwdInput.init(self.absolute_path orelse "NOTHING").render();
+        var cwd_input = &self.*.cwd_input.?;
+        try cwd_input.render();
 
         const list_container_id = cl.ElementId.ID("EntryList");
         const list_padding = 2;
