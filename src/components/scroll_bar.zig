@@ -77,9 +77,10 @@ pub fn render(self: Self) void {
             },
         )({});
 
-        if (rl.isMouseButtonDown(.left) and cl.pointerOver(scroll_bar_thumb_id)) {
-            const scroll_container_data = cl.getScrollContainerData(self.parent_id);
-            scroll_container_data.scroll_position.*.y -= rl.getMouseDelta().y;
-        }
+        // TODO : Not working properly
+        // if (rl.isMouseButtonDown(.left) and cl.pointerOver(scroll_bar_thumb_id)) {
+        //     const scroll_container_data = cl.getScrollContainerData(self.parent_id);
+        //     scroll_container_data.scroll_position.*.y -= rl.getMouseDelta().y;
+        // }
     }
 }

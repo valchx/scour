@@ -143,7 +143,7 @@ pub fn render(self: Self) !void {
     })({
         ScrollBar.init(parent_id).render();
 
-        cl.UI()(.{
+        cl.UI()(cl.ElementDeclaration{
             .id = .ID("EntryList"),
             .layout = .{
                 .direction = .top_to_bottom,
