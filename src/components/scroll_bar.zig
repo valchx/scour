@@ -6,10 +6,15 @@ const theme = @import("../theme.zig");
 const Self = @This();
 
 parent_id: cl.ElementId,
+parent_x_offset: f32,
 
-pub fn init(parent_id: cl.ElementId) Self {
+pub fn init(
+    parent_id: cl.ElementId,
+    parent_x_offset: f32,
+) Self {
     return .{
         .parent_id = parent_id,
+        .parent_x_offset = parent_x_offset,
     };
 }
 
@@ -32,7 +37,7 @@ pub fn render(self: Self) void {
                     .attach_to = cl.FloatingAttachToElement.to_parent,
                     .offset = .{
                         .y = 0,
-                        .x = 0,
+                        .x = -self.parent_x_offset,
                     },
                     .zIndex = 1,
                     .parentId = self.parent_id.id,
@@ -47,7 +52,7 @@ pub fn render(self: Self) void {
                         .w = .fixed(thumb_width + 4),
                     },
                 },
-                .background_color = theme.entryItem.background.default,
+                .background_color = theme.scrollBar.bar,
             },
         )({});
 
@@ -58,7 +63,7 @@ pub fn render(self: Self) void {
                     .attach_to = cl.FloatingAttachToElement.to_parent,
                     .offset = .{
                         .y = y_offset,
-                        .x = -2,
+                        .x = -2 - self.parent_x_offset,
                     },
                     .zIndex = 1,
                     .parentId = self.parent_id.id,
@@ -73,7 +78,8 @@ pub fn render(self: Self) void {
                         .w = .fixed(thumb_width),
                     },
                 },
-                .background_color = theme.entryItem.background.selected,
+                .background_color = theme.scrollBar.thumb,
+            .corner_radius = .all(5)
             },
         )({});
 

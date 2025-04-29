@@ -6,6 +6,7 @@ const theme = @import("../theme.zig");
 
 const Entry = @import("./entry.zig");
 const ScrollBar = @import("./scroll_bar.zig");
+const CwdInput = @import("./cwd_input.zig");
 
 const Self = @This();
 
@@ -126,34 +127,41 @@ fn computeNextEntries(
 }
 
 pub fn render(self: Self) !void {
-    const parent_id = cl.ElementId.ID("EntryListOuterContainer");
+    const outer_container_id = cl.ElementId.ID("EntryListOuterContainer");
+    const outer_padding = 16;
     cl.UI()(cl.ElementDeclaration{
-        .id = parent_id,
+        .id = outer_container_id,
         .layout = .{
-            .direction = .left_to_right,
+            .direction = .top_to_bottom,
             .sizing = .{
                 .h = .grow,
                 .w = .grow,
             },
-            .padding = .all(16),
+            .padding = .all(outer_padding),
             .child_gap = 16,
         },
-        .scroll = .{ .vertical = true },
         .background_color = theme.background.primary,
     })({
-        ScrollBar.init(parent_id).render();
+        CwdInput.init(self.absolute_path orelse "NOTHING").render();
 
+        const list_container_id = cl.ElementId.ID("EntryList");
+        const list_padding = 2;
         cl.UI()(cl.ElementDeclaration{
-            .id = .ID("EntryList"),
+            .id = list_container_id,
             .layout = .{
                 .direction = .top_to_bottom,
                 .sizing = .{ .h = .grow, .w = .grow },
-                .padding = .all(16),
+                .padding = .all(list_padding),
                 .child_alignment = .{ .x = .center, .y = .top },
                 .child_gap = 2,
             },
+            .scroll = .{ .vertical = true },
             .background_color = theme.background.secondary,
         })({
+            ScrollBar.init(
+                list_container_id,
+                0,
+            ).render();
             for (self.entries.items, 0..) |entry, i| {
                 try entry.render(@intCast(i));
             }
