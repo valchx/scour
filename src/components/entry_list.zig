@@ -1,5 +1,6 @@
 const std = @import("std");
 const cl = @import("zclay");
+const rl = @import("raylib");
 
 const theme = @import("../theme.zig");
 
@@ -53,7 +54,7 @@ pub fn selectEntry(self: *Self, entry_to_select: *Entry) void {
     entry_to_select.*.selected = true;
 }
 
-pub fn computeEntries (self: *Self) void {
+pub fn computeEntries(self: *Self) void {
     if (self.next_entries) |next_entries| {
         self.deinitEntries();
         self.*.entries = next_entries;
@@ -124,11 +125,55 @@ fn computeNextEntries(
 }
 
 pub fn render(self: Self) !void {
-    cl.UI()(.{
-        .id = .ID("EntryListOuterContainer"),
-        .layout = .{ .direction = .left_to_right, .sizing = .grow, .padding = .all(16), .child_gap = 16 },
+    const parent_id = cl.ElementId.ID("EntryListOuterContainer");
+    cl.UI()(cl.ElementDeclaration{
+        .id = parent_id,
+        .layout = .{
+            .direction = .left_to_right,
+            .sizing = .{
+                // TODO : There must be a simpler way of doing this in clay
+                // .h = .fixed(@floatFromInt(rl.getScreenHeight())),
+                .h = .grow,
+                .w = .grow,
+            },
+            .padding = .all(16),
+            .child_gap = 16,
+        },
+        .scroll = .{ .vertical = true },
         .background_color = theme.background.primary,
     })({
+        const scroll_delta = cl.getScrollContainerData(parent_id);
+        if (scroll_delta.content_dimensions.h > 0 and scroll_delta.content_dimensions.h > scroll_delta.scroll_container_dimensions.h) {
+            const y_offset = -(scroll_delta.scroll_position.y / scroll_delta.content_dimensions.h) * scroll_delta.scroll_container_dimensions.h;
+            const bar_height = (scroll_delta.scroll_container_dimensions.h / scroll_delta.content_dimensions.h) * scroll_delta.scroll_container_dimensions.h;
+            const bar_width = 20;
+            cl.UI()(
+                cl.ElementDeclaration{
+                    .id = cl.ElementId.localID("scroll-bar"),
+                    .floating = .{
+                        .attach_to = cl.FloatingAttachToElement.to_parent,
+                        .offset = .{
+                            .y = y_offset,
+                            .x = 0,
+                        },
+                        .zIndex = 1,
+                        .parentId = parent_id.id,
+                        .attach_points = .{
+                            .element = .right_top,
+                            .parent = .right_top,
+                        },
+                    },
+                    .layout = .{
+                        .sizing = .{
+                            .h = .fixed(bar_height),
+                            .w = .fixed(bar_width),
+                        },
+                    },
+                    .background_color = theme.entryItem.background.selected,
+                },
+            )({});
+        }
+
         cl.UI()(.{
             .id = .ID("EntryList"),
             .layout = .{
