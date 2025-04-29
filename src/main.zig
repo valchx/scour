@@ -2,20 +2,11 @@ const std = @import("std");
 const rl = @import("raylib");
 const cl = @import("zclay");
 
+const Utils = @import("./utils.zig");
+
 const renderer = @import("raylib_render_clay.zig");
 
 const EntryList = @import("./components/entry_list.zig");
-
-fn loadFont(file_data: ?[]const u8, font_id: u16, font_size: i32) !void {
-    renderer.raylib_fonts[font_id] = try rl.loadFontFromMemory(".ttf", file_data, font_size * 2, null);
-    rl.setTextureFilter(renderer.raylib_fonts[font_id].?.texture, .bilinear);
-}
-
-fn loadImage(comptime path: [:0]const u8) !rl.Texture2D {
-    const texture = try rl.loadTextureFromImage(try rl.loadImageFromMemory(@ptrCast(std.fs.path.extension(path)), @embedFile(path)));
-    rl.setTextureFilter(texture, .bilinear);
-    return texture;
-}
 
 pub fn main() !void {
     const page_allocator = std.heap.page_allocator;
@@ -38,7 +29,7 @@ pub fn main() !void {
     rl.setTargetFPS(120);
 
     // load assets
-    try loadFont(@embedFile("./resources/Roboto-Regular.ttf"), 0, 24);
+    try Utils.loadFont(@embedFile("./resources/Roboto-Regular.ttf"), 0, 24);
 
     // State
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
@@ -76,6 +67,10 @@ pub fn main() !void {
             .h = @floatFromInt(rl.getScreenHeight()),
         });
 
+        // Update State
+        entries.computeEntries();
+
+        // Draw
         cl.beginLayout();
         try entries.render();
         var render_commands = cl.endLayout();

@@ -2,6 +2,7 @@ const std = @import("std");
 const cl = @import("zclay");
 const rl = @import("raylib");
 
+const Utils = @import("../utils.zig");
 const theme = @import("../theme.zig");
 
 const EntryList = @import("./entry_list.zig");
