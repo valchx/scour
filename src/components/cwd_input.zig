@@ -64,10 +64,28 @@ pub fn render(self: *Self) !void {
 
             const absolute_path = if (self.temp_cwd_absolute_path != null) self.temp_cwd_absolute_path.?.items else self.cwd_absolute_path;
 
-            key_poll: while (true) {
+            char_codes: while (true) {
+                const char_code: u21 = @intCast(rl.getCharPressed());
+                if (char_code == 0) {
+                    break :char_codes;
+                }
+
+                // const unicode_char = std.unicode.
+
+                var char_code_buf: [4]u8 = undefined;
+                const len = try std.unicode.utf8Encode(char_code, &char_code_buf);
+
+                const result = try self._allocator.alloc(u8, len);
+                @memcpy(result, char_code_buf[0..len]);
+
+                try self.temp_cwd_absolute_path.?.appendSlice(result);
+                self.*.cursor_pos += 1;
+            }
+
+            special_keys: while (true) {
                 const key = rl.getKeyPressed();
                 if (key == .null) {
-                    break :key_poll;
+                    break :special_keys;
                 }
                 if (key == .left and self.cursor_pos > 0) {
                     self.*.cursor_pos -= 1;
@@ -79,23 +97,6 @@ pub fn render(self: *Self) !void {
                     try self.temp_cwd_absolute_path.?.resize(self.temp_cwd_absolute_path.?.items.len -
                         1);
                     self.*.cursor_pos -= 1;
-                }
-
-                // TODO : This is awful. There must be some lib to free me from this.
-                const key_int: u32 = @intCast(@intFromEnum(key));
-                if (key_int <= std.math.maxInt(u8)) {
-                    var ascii_key: u8 = @intCast(@intFromEnum(key));
-                    if (std.ascii.isAscii(ascii_key)) {
-
-                        // TODO : Caps lock ?
-                        // Uppercase if shift is pressed
-                        if (!(rl.isKeyDown(.right_shift) or rl.isKeyDown(.left_shift)) and std.ascii.isAlphabetic(ascii_key)) {
-                            ascii_key += 32;
-                        }
-
-                        try self.temp_cwd_absolute_path.?.append(ascii_key);
-                        self.*.cursor_pos += 1;
-                    }
                 }
             }
 
