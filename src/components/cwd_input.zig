@@ -90,6 +90,14 @@ fn handleKeyboardInput(
                 try self.onBlur();
             }
 
+            if (key == .end) {
+                cursor_utf_byte_position.* = absolute_path.items.len;
+            }
+
+            if (key == .home) {
+                cursor_utf_byte_position.* = 0;
+            }
+
             // Move cursor left
             if (key == .left and cursor_utf_byte_position.* > 0) {
                 const slice_before = absolute_path.items[0..cursor_utf_byte_position.*];
