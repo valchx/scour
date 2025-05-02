@@ -62,7 +62,11 @@ pub fn computeEntries(self: *Self) void {
         self.deinitEntries();
         self.*.entries = next_entries;
         self.*.next_entries = null;
-        self.*.cwd_input = CwdInput.init(self._allocator, self.absolute_path.?);
+        self.*.cwd_input = CwdInput.init(
+            self._allocator,
+            self.absolute_path.?,
+            self,
+        );
     }
 }
 
