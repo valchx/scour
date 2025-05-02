@@ -20,6 +20,7 @@ is_focused: bool = false,
 cursor_utf_byte_position: usize,
 _allocator: std.mem.Allocator,
 entryList: *EntryList,
+// Not implemented
 key_debounce: ?struct {
     key: KeyOrChar,
     debounce: struct {
@@ -66,7 +67,7 @@ fn onBlur(self: *Self) !void {
     self.*.is_focused = false;
 
     if (self.temp_cwd_absolute_path) |*temp_cwd_absolute_path| {
-        try self.entryList.*.changeDir(temp_cwd_absolute_path.items);
+        self.entryList.*.changeDir(temp_cwd_absolute_path.items) catch {};
 
         temp_cwd_absolute_path.*.deinit();
         self.temp_cwd_absolute_path = null;

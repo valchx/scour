@@ -34,12 +34,12 @@ pub fn deinit(self: Self) void {
 }
 
 pub fn changeDir(self: *Self, absolute_path: []const u8) !void {
+    try self.computeNextEntries(absolute_path);
+
     if (self.absolute_path) |old_absolute_path| {
         self._allocator.free(old_absolute_path);
     }
     self.*.absolute_path = try self.*._allocator.dupe(u8, absolute_path);
-
-    try self.computeNextEntries();
 }
 
 fn deinitEntries(self: Self) void {
@@ -72,19 +72,19 @@ pub fn computeEntries(self: *Self) void {
 
 fn computeNextEntries(
     self: *Self,
+    absolute_path: ?[]const u8,
 ) !void {
-    if (self.absolute_path == null) {
+    if (absolute_path == null) {
         return;
     }
 
-    std.debug.print("abs_path {s}\n", .{self.absolute_path.?});
-    var dir = try std.fs.openDirAbsolute(self.*.absolute_path.?, .{ .iterate = true });
+    var dir = try std.fs.openDirAbsolute(absolute_path.?, .{ .iterate = true });
     defer dir.close();
 
     self.*.next_entries = std.ArrayList(*Entry).init(self._allocator);
 
     // Add "Go back" entry if we're not at the root
-    if (!std.mem.eql(u8, "/", self.*.absolute_path.?)) {
+    if (!std.mem.eql(u8, "/", absolute_path.?)) {
         const go_back_absolute_path = try dir.realpathAlloc(self._allocator, "..");
         defer self._allocator.free(go_back_absolute_path);
         const entry = try self.*._allocator.create(Entry);
@@ -107,14 +107,6 @@ fn computeNextEntries(
             continue :next_entry;
         }
         const full_path = dir.realpathAlloc(self.*._allocator, dirEntry.name) catch |err| {
-            std.log.debug(
-                \\Error : Could not create full path :
-                \\  Target : {s}
-                \\  Kind : {}
-                \\  From : {s}
-                \\{}
-                \\
-            , .{ dirEntry.name, dirEntry.kind, self.*.absolute_path.?, err });
             return err;
         };
         defer self.*._allocator.free(full_path);
