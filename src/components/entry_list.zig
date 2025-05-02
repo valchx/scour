@@ -7,39 +7,47 @@ const theme = @import("../theme.zig");
 const Entry = @import("./entry.zig");
 const ScrollBar = @import("./scroll_bar.zig");
 const CwdInput = @import("./cwd_input.zig");
+const NavButton = @import("./nav_button.zig");
 
 const Self = @This();
 
 _allocator: std.mem.Allocator,
 entries: std.ArrayList(*Entry),
 next_entries: ?std.ArrayList(*Entry) = null,
-absolute_path: ?[]const u8 = null,
+paths_stack: std.ArrayList([]const u8),
 cwd_input: ?CwdInput = null,
 
-/// To set the `absolute_path` field, call `changeDir`
 pub fn init(
     allocator: std.mem.Allocator,
-) !Self {
-    return Self{
+) Self {
+    const self = Self{
         .entries = std.ArrayList(*Entry).init(allocator),
         ._allocator = allocator,
+        .paths_stack = std.ArrayList([]const u8).init(allocator),
     };
+
+    return self;
 }
 
 pub fn deinit(self: Self) void {
     self.deinitEntries();
-    if (self.absolute_path) |absolute_path| {
-        self._allocator.free(absolute_path);
+    for (self.paths_stack.items) |path| {
+        self._allocator.free(path);
     }
 }
 
-pub fn changeDir(self: *Self, absolute_path: []const u8) !void {
-    try self.computeNextEntries(absolute_path);
+fn changeDirWithoutPushingToStack(self: *Self, absolute_path: []const u8) !void {
+    if (self.paths_stack.items.len > 0 and std.mem.eql(u8, absolute_path, self.paths_stack.getLast()))
+        return;
 
-    if (self.absolute_path) |old_absolute_path| {
-        self._allocator.free(old_absolute_path);
-    }
-    self.*.absolute_path = try self.*._allocator.dupe(u8, absolute_path);
+    try self.computeNextEntries(absolute_path);
+}
+
+pub fn changeDir(self: *Self, absolute_path: []const u8) !void {
+    try self.changeDirWithoutPushingToStack(absolute_path);
+
+    // TODO : Add limit. And unify the stack ?
+    try self.paths_stack.append(try self.*._allocator.dupe(u8, absolute_path));
 }
 
 fn deinitEntries(self: Self) void {
@@ -64,10 +72,38 @@ pub fn computeEntries(self: *Self) void {
         self.*.next_entries = null;
         self.*.cwd_input = CwdInput.init(
             self._allocator,
-            self.absolute_path.?,
+            self.paths_stack.getLast(),
             self,
         );
     }
+}
+
+const SortOrder = enum {
+    asc,
+    desc,
+};
+
+fn sortNextEntries(self: *Self, sortOrder: SortOrder) !void {
+    const next_entries = try self.entries.clone();
+
+    const SortCtx = struct {
+        sortOrder: std.math.Order,
+    };
+
+    const order = if (sortOrder == .asc) .lhs else .rhs;
+
+    std.mem.sort(
+        *Entry,
+        next_entries.items,
+        SortCtx{
+            .sortOrder = order,
+        },
+        struct {
+            fn lessThan(ctx: SortCtx, lhs: *Entry, rhs: *Entry) bool {
+                return std.mem.order(u8, lhs.*.name, rhs.*.name) == ctx.sortOrder;
+            }
+        }.lessThan,
+    );
 }
 
 fn computeNextEntries(
@@ -124,6 +160,24 @@ fn computeNextEntries(
     }
 }
 
+const go_up_closure = struct {
+    fn call(self: *Self) !void {
+        const current_path_op = self.paths_stack.getLastOrNull();
+
+        if (current_path_op) |current_path| {
+            if (std.mem.eql(u8, current_path, "/"))
+                return;
+
+            var dir = try std.fs.openDirAbsolute(current_path, .{ .iterate = false });
+            defer dir.close();
+            const go_up_absolute_path = try dir.realpathAlloc(self._allocator, "..");
+            defer self._allocator.free(go_up_absolute_path);
+
+            try self.changeDir(go_up_absolute_path);
+        }
+    }
+}.call;
+
 pub fn render(self: *Self) !void {
     const outer_container_id = cl.ElementId.ID("EntryListOuterContainer");
     const outer_padding = 16;
@@ -140,8 +194,30 @@ pub fn render(self: *Self) !void {
         },
         .background_color = theme.background.primary,
     })({
-        var cwd_input = &self.*.cwd_input.?;
-        try cwd_input.render();
+        if (self.*.cwd_input) |*cwd_input| {
+            cl.UI()(cl.ElementDeclaration{
+                .id = .ID("Navigation"),
+                .layout = .{
+                    .direction = .left_to_right,
+                    .sizing = .{ .h = .fit, .w = .grow },
+                    .padding = .all(4),
+                    .child_alignment = .{ .x = .center, .y = .top },
+                    .child_gap = 4,
+                },
+                .background_color = theme.background.secondary,
+            })({
+                var go_up_button = NavButton.Button(*Self).init(
+                    "up_button",
+                    "UP",
+                    self,
+                    go_up_closure,
+                    std.mem.eql(u8, self.paths_stack.getLast(), "/"),
+                );
+                try go_up_button.render();
+
+                try cwd_input.render();
+            });
+        }
 
         const list_container_id = cl.ElementId.ID("EntryList");
         const list_padding = 2;

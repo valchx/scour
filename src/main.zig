@@ -37,7 +37,7 @@ pub fn main() !void {
     var entries_arena = std.heap.ArenaAllocator.init(gpa.allocator());
     defer entries_arena.deinit();
     const entries_allocator = entries_arena.allocator();
-    var entries = try EntryList.init(entries_allocator);
+    var entries = EntryList.init(entries_allocator);
     defer entries.deinit();
     const absolute_path = try std.fs.cwd().realpathAlloc(entries_allocator, "./");
     try entries.changeDir(absolute_path);
