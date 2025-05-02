@@ -9,12 +9,24 @@ const EntryList = @import("./entry_list.zig");
 
 const Self = @This();
 
+const KeyOrChar = union(enum) {
+    char_code: []const u8,
+    key_code: rl.KeyboardKey,
+};
+
 cwd_absolute_path: []const u8,
 temp_cwd_absolute_path: ?std.ArrayList(u8) = null,
 is_focused: bool = false,
 cursor_utf_byte_position: usize,
 _allocator: std.mem.Allocator,
 entryList: *EntryList,
+key_debounce: ?struct {
+    key: KeyOrChar,
+    debounce: struct {
+        first_press_ms: i32,
+        last_repeat: ?i32,
+    },
+} = null,
 
 pub fn init(
     allocator: std.mem.Allocator,
@@ -61,21 +73,61 @@ fn onBlur(self: *Self) !void {
     }
 }
 
-fn getFirstUnicodeCharByteLen(buf: []const u8) usize {
-    if (buf.len == 0) return 0;
-    return std.unicode.utf8ByteSequenceLength(buf[0]) catch 0;
-}
+fn handleKeyboardInput(
+    self: *Self,
+    key_or_char: KeyOrChar,
+) !void {
+    const absolute_path = &self.temp_cwd_absolute_path.?;
+    const cursor_utf_byte_position = &self.cursor_utf_byte_position;
 
-fn getLastUnicodeCharByteLen(buf: []const u8) usize {
-    if (buf.len == 0) return 0;
+    switch (key_or_char) {
+        .char_code => |char_code| {
+            try absolute_path.*.appendSlice(char_code);
+            cursor_utf_byte_position.* += char_code.len;
+        },
+        .key_code => |key| {
+            if (key == .enter or key == .escape) {
+                try self.onBlur();
+            }
 
-    var i = buf.len;
-    while (i > 0) : (i -= 1) {
-        if (std.unicode.utf8ByteSequenceLength(buf[i - 1]) catch 0 == buf.len - (i - 1)) {
-            return buf.len - (i - 1);
-        }
+            // Move cursor left
+            if (key == .left and cursor_utf_byte_position.* > 0) {
+                const slice_before = absolute_path.items[0..cursor_utf_byte_position.*];
+                const last_char_len = Utils.unicode.getLastUnicodeCharByteLen(slice_before);
+                if (last_char_len > 0) {
+                    cursor_utf_byte_position.* -= last_char_len;
+                }
+            }
+
+            // Move cursor right
+            if (key == .right and cursor_utf_byte_position.* < absolute_path.items.len) {
+                const slice_after = absolute_path.items[cursor_utf_byte_position.*..];
+                const next_char_len = Utils.unicode.getFirstUnicodeCharByteLen(slice_after);
+                if (next_char_len > 0) {
+                    cursor_utf_byte_position.* += next_char_len;
+                }
+            }
+
+            // Handle backspace
+            if (key == .backspace and cursor_utf_byte_position.* > 0) {
+                const slice_before = absolute_path.items[0..cursor_utf_byte_position.*];
+                const last_char_len = Utils.unicode.getLastUnicodeCharByteLen(slice_before);
+                if (last_char_len > 0) {
+                    try absolute_path.resize(absolute_path.*.items.len - last_char_len);
+                    cursor_utf_byte_position.* -= last_char_len;
+                }
+            }
+
+            // Handle delete
+            if (key == .delete and cursor_utf_byte_position.* < absolute_path.items.len) {
+                const slice_after = absolute_path.items[cursor_utf_byte_position.*..];
+                const next_char_len = Utils.unicode.getFirstUnicodeCharByteLen(slice_after);
+                if (next_char_len > 0) {
+                    try absolute_path.replaceRange(cursor_utf_byte_position.*, next_char_len, &[_]u8{});
+                }
+            }
+        },
     }
-    return 0;
 }
 
 fn renderInteractiveInput(self: *Self) !void {
@@ -91,11 +143,9 @@ fn renderInteractiveInput(self: *Self) !void {
         if (char_code == 0) {
             break :char_codes;
         }
-
         var char_code_buf: [4]u8 = undefined;
         const len = try std.unicode.utf8Encode(char_code, &char_code_buf);
-        try absolute_path.*.appendSlice(char_code_buf[0..len]);
-        cursor_utf_byte_position.* += len;
+        try self.handleKeyboardInput(.{ .char_code = char_code_buf[0..len] });
     }
 
     // Handle special keys
@@ -105,46 +155,7 @@ fn renderInteractiveInput(self: *Self) !void {
             break :special_keys;
         }
 
-        if (key == .enter or key == .escape) {
-            try self.onBlur();
-        }
-
-        // Move cursor left
-        if (key == .left and cursor_utf_byte_position.* > 0) {
-            const slice_before = absolute_path.items[0..cursor_utf_byte_position.*];
-            const last_char_len = getLastUnicodeCharByteLen(slice_before);
-            if (last_char_len > 0) {
-                cursor_utf_byte_position.* -= last_char_len;
-            }
-        }
-
-        // Move cursor right
-        if (key == .right and cursor_utf_byte_position.* < absolute_path.items.len) {
-            const slice_after = absolute_path.items[cursor_utf_byte_position.*..];
-            const next_char_len = getFirstUnicodeCharByteLen(slice_after);
-            if (next_char_len > 0) {
-                cursor_utf_byte_position.* += next_char_len;
-            }
-        }
-
-        // Handle backspace
-        if (key == .backspace and cursor_utf_byte_position.* > 0) {
-            const slice_before = absolute_path.items[0..cursor_utf_byte_position.*];
-            const last_char_len = getLastUnicodeCharByteLen(slice_before);
-            if (last_char_len > 0) {
-                try absolute_path.resize(absolute_path.*.items.len - last_char_len);
-                cursor_utf_byte_position.* -= last_char_len;
-            }
-        }
-
-        // Handle delete
-        if (key == .delete and cursor_utf_byte_position.* < absolute_path.items.len) {
-            const slice_after = absolute_path.items[cursor_utf_byte_position.*..];
-            const next_char_len = getFirstUnicodeCharByteLen(slice_after);
-            if (next_char_len > 0) {
-                try absolute_path.replaceRange(cursor_utf_byte_position.*, next_char_len, &[_]u8{});
-            }
-        }
+        try self.handleKeyboardInput(.{ .key_code = key });
     }
 
     const before_cursor = absolute_path.items[0..(if (absolute_path.items.len >= cursor_utf_byte_position.*) cursor_utf_byte_position.* else 0)];

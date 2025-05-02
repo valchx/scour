@@ -13,3 +13,21 @@ pub fn loadImage(comptime path: [:0]const u8) !rl.Texture2D {
     return texture;
 }
 
+pub const unicode = struct {
+    pub fn getFirstUnicodeCharByteLen(buf: []const u8) usize {
+        if (buf.len == 0) return 0;
+        return std.unicode.utf8ByteSequenceLength(buf[0]) catch 0;
+    }
+
+    pub fn getLastUnicodeCharByteLen(buf: []const u8) usize {
+        if (buf.len == 0) return 0;
+
+        var i = buf.len;
+        while (i > 0) : (i -= 1) {
+            if (std.unicode.utf8ByteSequenceLength(buf[i - 1]) catch 0 == buf.len - (i - 1)) {
+                return buf.len - (i - 1);
+            }
+        }
+        return 0;
+    }
+};
