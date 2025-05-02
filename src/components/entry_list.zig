@@ -7,7 +7,7 @@ const theme = @import("../theme.zig");
 const Entry = @import("./entry.zig");
 const ScrollBar = @import("./scroll_bar.zig");
 const CwdInput = @import("./cwd_input.zig");
-const NavButton = @import("./nav_button.zig");
+const Button = @import("./button.zig").Button;
 
 const Self = @This();
 
@@ -206,7 +206,7 @@ pub fn render(self: *Self) !void {
                 },
                 .background_color = theme.background.secondary,
             })({
-                var go_up_button = NavButton.Button(*Self).init(
+                var go_up_button = Button(*Self).init(
                     "up_button",
                     "UP",
                     self,
