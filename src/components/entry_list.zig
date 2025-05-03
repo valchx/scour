@@ -210,7 +210,7 @@ pub fn render(self: *Self) !void {
                     .direction = .left_to_right,
                     .sizing = .{ .h = .fit, .w = .grow },
                     .padding = .all(4),
-                    .child_alignment = .{ .x = .center, .y = .top },
+                    .child_alignment = .{ .x = .center, .y = .center },
                     .child_gap = 4,
                 },
                 .background_color = theme.background.secondary,
