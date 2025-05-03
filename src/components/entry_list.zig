@@ -165,7 +165,7 @@ const go_back_closure = struct {
         if (removed) |path| {
             self._allocator.free(path);
         }
-        try self.changeDir(self.paths_stack.getLast());
+        try self.changeDirWithoutPushingToStack(self.paths_stack.getLast());
     }
 }.call;
 
