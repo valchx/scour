@@ -37,9 +37,6 @@ pub fn deinit(self: Self) void {
 }
 
 fn changeDirWithoutPushingToStack(self: *Self, absolute_path: []const u8) !void {
-    if (self.paths_stack.items.len > 0 and std.mem.eql(u8, absolute_path, self.paths_stack.getLast()))
-        return;
-
     try self.computeNextEntries(absolute_path);
 }
 
@@ -160,6 +157,18 @@ fn computeNextEntries(
     }
 }
 
+const go_back_closure = struct {
+    fn call(self: *Self) !void {
+        if (self.paths_stack.items.len < 2) return;
+
+        const removed = self.*.paths_stack.pop();
+        if (removed) |path| {
+            self._allocator.free(path);
+        }
+        try self.changeDir(self.paths_stack.getLast());
+    }
+}.call;
+
 const go_up_closure = struct {
     fn call(self: *Self) !void {
         const current_path_op = self.paths_stack.getLastOrNull();
@@ -206,6 +215,15 @@ pub fn render(self: *Self) !void {
                 },
                 .background_color = theme.background.secondary,
             })({
+                var go_back_button = Button(*Self).init(
+                    "back_button",
+                    "BACK",
+                    self,
+                    go_back_closure,
+                    self.paths_stack.items.len < 2,
+                );
+                try go_back_button.render();
+
                 var go_up_button = Button(*Self).init(
                     "up_button",
                     "UP",
