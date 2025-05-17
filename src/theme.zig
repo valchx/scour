@@ -11,7 +11,7 @@ pub const scrollBar = struct {
 };
 
 pub const cwdInput = struct {
-    pub const background: cl.Color = .{ 35, 35, 38, 255 };
+    pub const background: cl.Color = .{ 27, 28, 30, 255 };
     pub const text: cl.Color = .{ 250, 250, 255, 255 };
 };
 

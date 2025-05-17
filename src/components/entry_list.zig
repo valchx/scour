@@ -6,8 +6,7 @@ const theme = @import("../theme.zig");
 
 const Entry = @import("./entry.zig");
 const ScrollBar = @import("./scroll_bar.zig");
-const CwdInput = @import("./cwd_input.zig");
-const Button = @import("./button.zig").Button;
+const NavBar = @import("./nav_bar.zig");
 
 const Self = @This();
 
@@ -15,18 +14,17 @@ _allocator: std.mem.Allocator,
 entries: std.ArrayList(*Entry),
 next_entries: ?std.ArrayList(*Entry) = null,
 paths_stack: std.ArrayList([]const u8),
-cwd_input: ?CwdInput = null,
+nav_bar: ?NavBar = null,
 
 pub fn init(
     allocator: std.mem.Allocator,
 ) Self {
-    const self = Self{
+    return Self{
         .entries = std.ArrayList(*Entry).init(allocator),
         ._allocator = allocator,
         .paths_stack = std.ArrayList([]const u8).init(allocator),
+        .nav_bar = undefined,
     };
-
-    return self;
 }
 
 pub fn deinit(self: Self) void {
@@ -36,7 +34,7 @@ pub fn deinit(self: Self) void {
     }
 }
 
-fn changeDirWithoutPushingToStack(self: *Self, absolute_path: []const u8) !void {
+pub fn changeDirWithoutPushingToStack(self: *Self, absolute_path: []const u8) !void {
     try self.computeNextEntries(absolute_path);
 }
 
@@ -67,11 +65,10 @@ pub fn computeEntries(self: *Self) void {
         self.deinitEntries();
         self.*.entries = next_entries;
         self.*.next_entries = null;
-        self.*.cwd_input = CwdInput.init(
-            self._allocator,
-            self.paths_stack.getLast(),
-            self,
-        );
+        if (self.nav_bar) |nav_bar| {
+            nav_bar.deinit();
+        }
+        self.*.nav_bar = NavBar.init(self._allocator, self, self.paths_stack.getLast());
     }
 }
 
@@ -157,36 +154,6 @@ fn computeNextEntries(
     }
 }
 
-const go_back_closure = struct {
-    fn call(self: *Self) !void {
-        if (self.paths_stack.items.len < 2) return;
-
-        const removed = self.*.paths_stack.pop();
-        if (removed) |path| {
-            self._allocator.free(path);
-        }
-        try self.changeDirWithoutPushingToStack(self.paths_stack.getLast());
-    }
-}.call;
-
-const go_up_closure = struct {
-    fn call(self: *Self) !void {
-        const current_path_op = self.paths_stack.getLastOrNull();
-
-        if (current_path_op) |current_path| {
-            if (std.mem.eql(u8, current_path, "/"))
-                return;
-
-            var dir = try std.fs.openDirAbsolute(current_path, .{ .iterate = false });
-            defer dir.close();
-            const go_up_absolute_path = try dir.realpathAlloc(self._allocator, "..");
-            defer self._allocator.free(go_up_absolute_path);
-
-            try self.changeDir(go_up_absolute_path);
-        }
-    }
-}.call;
-
 pub fn render(self: *Self) !void {
     const outer_container_id = cl.ElementId.ID("EntryListOuterContainer");
     const outer_padding = 16;
@@ -203,38 +170,8 @@ pub fn render(self: *Self) !void {
         },
         .background_color = theme.background.primary,
     })({
-        if (self.*.cwd_input) |*cwd_input| {
-            cl.UI()(cl.ElementDeclaration{
-                .id = .ID("Navigation"),
-                .layout = .{
-                    .direction = .left_to_right,
-                    .sizing = .{ .h = .fit, .w = .grow },
-                    .padding = .all(4),
-                    .child_alignment = .{ .x = .center, .y = .center },
-                    .child_gap = 4,
-                },
-                .background_color = theme.background.secondary,
-            })({
-                var go_back_button = Button(*Self).init(
-                    "back_button",
-                    "BACK",
-                    self,
-                    go_back_closure,
-                    self.paths_stack.items.len < 2,
-                );
-                try go_back_button.render();
-
-                var go_up_button = Button(*Self).init(
-                    "up_button",
-                    "UP",
-                    self,
-                    go_up_closure,
-                    std.mem.eql(u8, self.paths_stack.getLast(), "/"),
-                );
-                try go_up_button.render();
-
-                try cwd_input.render();
-            });
+        if (self.nav_bar) |*nav_bar| {
+            try nav_bar.render();
         }
 
         const list_container_id = cl.ElementId.ID("EntryList");

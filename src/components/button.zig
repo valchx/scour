@@ -60,7 +60,7 @@ pub fn Button(
                 .layout = cl.LayoutConfig{
                     .sizing = .{ .w = .fit, .h = .fit },
                     .child_alignment = .{ .x = .center, .y = .center },
-                    .padding = .all(4),
+                    .padding = .all(8),
                 },
                 .background_color = self.getBackgroundColor(),
             })({
