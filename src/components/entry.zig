@@ -1,4 +1,6 @@
 const std = @import("std");
+const builtin = @import("builtin");
+
 const cl = @import("zclay");
 const rl = @import("raylib");
 
@@ -53,9 +55,32 @@ fn getBackgroundColor(self: Self, hovered: bool) cl.Color {
 
 const max_double_click_time_ms = 200;
 
-fn onDoubleClick(self: Self) !void {
-    if (self.kind == .directory) {
-        try self.entryList.changeDir(self.full_path);
+fn onDoubleClick(self: *Self) !void {
+    switch (self.kind) {
+        .directory => {
+            try self.entryList.changeDir(self.full_path);
+        },
+        .file => {
+            self.*.selected = false;
+            switch (builtin.os.tag) {
+                .linux, .macos => {
+                    var process = std.process.Child.init(
+                        &[_][]const u8{
+                            "xdg-open",
+                            self.full_path,
+                        },
+                        self._allocator,
+                    );
+
+                    process.spawn() catch |err| {
+                        std.debug.print("Failed to spawn process: {}\n", .{err});
+                        return err;
+                    };
+                },
+                else => {},
+            }
+        },
+        else => {},
     }
 }
 
