@@ -2,6 +2,7 @@
 
 ![Screenshot of Scour](./images/screenshot-01.png)
 
+# Goal
 This is a learning oportunity for me.
 What I will learn :
 - Zig
@@ -17,7 +18,7 @@ What I will learn :
 
 I will also learn how OSses and DEs do some things, ex. opening a file with the default app.
 
-Features :
+# Features :
 - [x] Listing files
 - [x] Moving directories
 - [x] Opening files
