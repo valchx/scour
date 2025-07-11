@@ -1,6 +1,6 @@
 # Scour - Awful file explorer
 
-![[screenshot-01.png]]
+![Screenshot of Scour](./images/screenshot-01.png)
 
 This is a learning oportunity for me.
 What I will learn :
