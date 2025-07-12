@@ -57,5 +57,11 @@ pub fn deinit(self: Self) void {
 fn onBlur(ptr: *anyopaque, dir: []const u8) !void {
     const self: *Self = @ptrCast(@alignCast(ptr));
 
-    self.entry_list.*.changeDir(dir) catch {};
+    self.entry_list.*.changeDir(dir) catch {
+        // TODO : This is ignored when the user enters a
+        // path to a non-existing directory.
+        // Maybe inform the user of this mistake.
+
+        std.debug.print("Could not move to '{s}' directory\n", .{dir});
+    };
 }
