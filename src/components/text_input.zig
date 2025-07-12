@@ -15,30 +15,34 @@ _allocator: std.mem.Allocator,
 id_suffix: []const u8,
 
 ptr: *anyopaque,
-vtable: *VTable,
+vtable: *const VTable,
 
 const VTable = struct {
     /// Called when the input is focused
-    on_focus_callback: ?fn (*anyopaque) void,
+    on_focus_callback: ?*const fn (*anyopaque) void,
+
     /// Called when the input is blurred/unfocused
-    on_blur_callback: ?fn (*anyopaque, buf: []const u8) void,
-    /// Called when the input receives a keypress
-    on_type_callback: ?fn (*anyopaque, buf: []const u8) void,
+    on_blur_callback: ?*const fn (*anyopaque, buf: []const u8) anyerror!void,
+
+    // /// Called when the input receives a keypress
+    // on_type_callback: ?*const fn (*anyopaque, buf: []const u8) void,
 };
 
 pub fn init(
     allocator: std.mem.Allocator,
-    source_buf: ?[]const u8,
+    ptr: *anyopaque,
+    vtable: *const VTable,
     id_suffix: []const u8,
-    vtable: VTable,
+    source_buf: ?[]const u8,
 ) Self {
     return Self{
         ._allocator = allocator,
+        .ptr = ptr,
+        .vtable = vtable,
+        .id_suffix = id_suffix,
         .source_buf = source_buf,
         .cursor_utf_byte_position = 0,
         .edit_buf = std.ArrayList(u8).init(allocator),
-        .id_suffix = id_suffix,
-        .vtable = vtable,
     };
 }
 
@@ -53,23 +57,24 @@ fn onFocus(self: *Self) !void {
     if (self.source_buf) |source_buf| {
         self.*.edit_buf.deinit();
         self.*.edit_buf = try std.ArrayList(u8).initCapacity(self._allocator, source_buf.len);
-        try self.edit_buf.?.appendSlice(source_buf);
+        try self.edit_buf.appendSlice(source_buf);
     }
 
     // TODO : Delect click position.
     // For now, just put the cursor at the end.
-    self.*.cursor_utf_byte_position = self.cwd_absolute_path.len;
+    self.*.cursor_utf_byte_position = self.edit_buf.items.len;
 
     if (self.vtable.on_focus_callback) |on_focus_callback| {
         on_focus_callback(self.ptr);
     }
 }
 
-fn onBlur(self: Self) !void {
-    self.*.is_focused = false;
+fn onBlur(ptr: *anyopaque) !void {
+    const self: *Self = @ptrCast(@alignCast(ptr));
+    self.is_focused = false;
 
     if (self.vtable.on_blur_callback) |on_blur_callback| {
-        on_blur_callback(self.ptr, self.edit_buf.items);
+        try on_blur_callback(self.ptr, self.edit_buf.items);
     }
 }
 
@@ -77,20 +82,22 @@ fn renderInteractiveInput(self: *Self) !void {
     var cursor_color = theme.cwdInput.text;
     cursor_color[3] = if (@mod(@as(i32, @intFromFloat(rl.getTime())), 2) == 0) 0 else 255;
 
-    const absolute_path = &self.edit_buf.?;
-    const cursor_utf_byte_position = &self.cursor_utf_byte_position;
+    const absolute_path = &self.edit_buf;
+    const cursor_utf_byte_position = self.cursor_utf_byte_position orelse 0;
 
-    try Utils.text.handleKeyboardInputs(
-        absolute_path,
-        cursor_utf_byte_position,
-        .{
-            .ptr = self,
-            .call = onBlur,
-        },
-    );
+    if (self.cursor_utf_byte_position) |*cursor_pos| {
+        try Utils.text.handleKeyboardInputs(
+            absolute_path,
+            cursor_pos,
+            .{
+                .ptr = self,
+                .call = onBlur,
+            },
+        );
+    }
 
-    const before_cursor = absolute_path.items[0..(if (absolute_path.items.len >= cursor_utf_byte_position.*) cursor_utf_byte_position.* else 0)];
-    const after_cursor = absolute_path.items[(if (absolute_path.items.len >= cursor_utf_byte_position.*) cursor_utf_byte_position.* else 0)..];
+    const before_cursor = absolute_path.items[0..(if (absolute_path.items.len >= cursor_utf_byte_position) cursor_utf_byte_position else 0)];
+    const after_cursor = absolute_path.items[(if (absolute_path.items.len >= cursor_utf_byte_position) cursor_utf_byte_position else 0)..];
 
     cl.text(before_cursor, cl.TextElementConfig{
         .font_size = 24,
@@ -126,15 +133,15 @@ pub fn render(self: *Self) !void {
                 if (!self.is_focused) {
                     try self.*.onFocus();
                 }
-            } else {
-                try self.*.onBlur();
+            } else if (self.is_focused) {
+                try onBlur(self);
             }
         }
 
         if (self.is_focused) {
             try self.renderInteractiveInput();
-        } else {
-            cl.text(self.source_buf, cl.TextElementConfig{
+        } else if (self.source_buf) |source_buf| {
+            cl.text(source_buf, cl.TextElementConfig{
                 .font_size = 24,
                 .color = theme.cwdInput.text,
             });

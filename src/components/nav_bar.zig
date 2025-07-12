@@ -116,6 +116,6 @@ pub fn render(self: *Self) !void {
 
         try go_up_button.render();
 
-        try self.cwd_input.render();
+        try self.cwd_input.textInput().render();
     });
 }
