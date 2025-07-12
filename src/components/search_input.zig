@@ -64,15 +64,13 @@ fn renderInteractiveInput(self: *Self) !void {
     const buf = &self.search_buf.?;
     const cursor_utf_byte_position = &self.cursor_utf_byte_position;
 
-    const blur_callback = Utils.Callback(*Self){
-        .ctx = self,
-        .call = onBlur,
-    };
-
     try Utils.text.handleKeyboardInputs(
         buf,
         cursor_utf_byte_position,
-        blur_callback,
+        .{
+            .ptr = self,
+            .call = onBlur,
+        },
     );
 
     const before_cursor = buf.items[0..cursor_utf_byte_position.*];

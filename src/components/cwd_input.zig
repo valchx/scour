@@ -50,7 +50,8 @@ fn onFocus(self: *Self) !void {
     self.*.cursor_utf_byte_position = self.cwd_absolute_path.len;
 }
 
-fn onBlur(self: *Self) !void {
+fn onBlur(ptr: *anyopaque) !void {
+    const self: *Self = @ptrCast(@alignCast(ptr));
     self.*.is_focused = false;
 
     if (self.temp_cwd_absolute_path) |*temp_cwd_absolute_path| {
@@ -71,8 +72,8 @@ fn renderInteractiveInput(self: *Self) !void {
     try Utils.text.handleKeyboardInputs(
         absolute_path,
         cursor_utf_byte_position,
-        Utils.Callback(*Self){
-            .ctx = self,
+        .{
+            .ptr = self,
             .call = onBlur,
         },
     );
@@ -115,7 +116,7 @@ pub fn render(self: *Self) !void {
                     try self.*.onFocus();
                 }
             } else {
-                try self.*.onBlur();
+                try onBlur(self);
             }
         }
 

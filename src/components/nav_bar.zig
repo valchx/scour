@@ -37,9 +37,7 @@ pub fn deinit(self: Self) void {
 }
 
 pub fn resetCwdInput(self: *Self, path: []const u8) void {
-    if (self.cwd_input) |cwd_input| {
-        cwd_input.deinit();
-    }
+    self.cwd_input.deinit();
 
     self.*.cwd_input = CwdInput.init(
         self._allocator,

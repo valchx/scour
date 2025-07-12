@@ -32,37 +32,23 @@ pub const unicode = struct {
     }
 };
 
-pub fn Callback(
-    comptime Context: type,
-) type {
-    return struct {
-        ctx: Context,
-        call: *const fn (ctx: Context) anyerror!void,
-
-        pub fn invoke(self: @This()) !void {
-            try self.call(self.ctx);
-        }
-    };
-}
-
 pub const text = struct {
     pub const KeyOrChar = union(enum) {
         char_code: []const u8,
         key_code: rl.KeyboardKey,
     };
 
+    const OnBlurClosure = struct {
+        ptr: *anyopaque,
+        call: *const fn (ptr: *anyopaque) anyerror!void,
+    };
+
     pub fn handleSingleKeyboardInput(
         key_or_char: KeyOrChar,
         buf: *std.ArrayList(u8),
         cursor_utf_byte_position: *usize,
-        onBlur: anytype,
+        on_blur_closure: OnBlurClosure,
     ) !void {
-        comptime {
-            if (@TypeOf(onBlur) != Callback(@TypeOf(onBlur.ctx))) {
-                @compileError("onBlur must be a BlurCallback");
-            }
-        }
-
         switch (key_or_char) {
             .char_code => |char_code| {
                 try buf.*.appendSlice(char_code);
@@ -70,7 +56,7 @@ pub const text = struct {
             },
             .key_code => |key| {
                 if (key == .enter or key == .escape) {
-                    try onBlur.invoke();
+                    try on_blur_closure.call(on_blur_closure.ptr);
                 }
 
                 if (key == .end) {
@@ -124,7 +110,7 @@ pub const text = struct {
     pub fn handleKeyboardInputs(
         buf: *std.ArrayList(u8),
         cursor_utf_byte_position: *usize,
-        onBlur: anytype,
+        on_blur_closure: OnBlurClosure,
     ) !void {
         // Handle character input
         char_codes: while (true) {
@@ -138,7 +124,7 @@ pub const text = struct {
                 .{ .char_code = char_code_buf[0..len] },
                 buf,
                 cursor_utf_byte_position,
-                onBlur,
+                on_blur_closure,
             );
         }
 
@@ -153,7 +139,7 @@ pub const text = struct {
                 .{ .key_code = key },
                 buf,
                 cursor_utf_byte_position,
-                onBlur,
+                on_blur_closure,
             );
         }
     }
