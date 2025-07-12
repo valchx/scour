@@ -34,10 +34,6 @@ pub fn deinit(self: Self) void {
     }
 }
 
-pub fn changeDirWithoutPushingToStack(self: *Self, absolute_path: []const u8) !void {
-    try self.computeNextEntries(absolute_path);
-}
-
 pub fn changeDir(self: *Self, absolute_path: []const u8) !void {
     try self.changeDirWithoutPushingToStack(absolute_path);
 
@@ -60,7 +56,7 @@ pub fn selectEntry(self: *Self, entry_to_select: *Entry) void {
     entry_to_select.*.selected = true;
 }
 
-pub fn computeEntries(self: *Self) void {
+pub fn computeNextEntries(self: *Self) void {
     if (self.next_entries) |next_entries| {
         self.deinitEntries();
         self.*.entries = next_entries;
@@ -100,7 +96,7 @@ fn sortNextEntries(self: *Self, sortOrder: SortOrder) !void {
     );
 }
 
-fn computeNextEntries(
+fn changeDirWithoutPushingToStack(
     self: *Self,
     absolute_path: ?[]const u8,
 ) !void {

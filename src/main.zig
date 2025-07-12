@@ -68,7 +68,7 @@ pub fn main() !void {
         });
 
         // Update State
-        entries.computeEntries();
+        entries.computeNextEntries();
 
         // Draw
         cl.beginLayout();

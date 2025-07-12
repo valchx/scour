@@ -23,9 +23,6 @@ const VTable = struct {
 
     /// Called when the input is blurred/unfocused
     on_blur_callback: ?*const fn (*anyopaque, buf: []const u8) anyerror!void,
-
-    // /// Called when the input receives a keypress
-    // on_type_callback: ?*const fn (*anyopaque, buf: []const u8) void,
 };
 
 pub fn init(

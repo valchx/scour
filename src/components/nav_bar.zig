@@ -54,7 +54,7 @@ fn go_back(ptr: *anyopaque) !void {
     if (removed) |path| {
         entry_list._allocator.free(path);
     }
-    try entry_list.changeDirWithoutPushingToStack(entry_list.paths_stack.getLast());
+    try entry_list.changeDir(entry_list.paths_stack.getLast());
 }
 
 fn go_up(ptr: *anyopaque) !void {
