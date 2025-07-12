@@ -48,7 +48,8 @@ pub fn resetCwdInput(self: *Self, path: []const u8) void {
     );
 }
 
-fn go_back(entry_list: *EntryList) !void {
+fn go_back(ptr: *anyopaque) !void {
+    const entry_list: *EntryList = @ptrCast(@alignCast(ptr));
     if (entry_list.paths_stack.items.len < 2) return;
 
     const removed = entry_list.*.paths_stack.pop();
@@ -58,7 +59,8 @@ fn go_back(entry_list: *EntryList) !void {
     try entry_list.changeDirWithoutPushingToStack(entry_list.paths_stack.getLast());
 }
 
-fn go_up(entry_list: *EntryList) !void {
+fn go_up(ptr: *anyopaque) !void {
+    const entry_list: *EntryList = @ptrCast(@alignCast(ptr));
     const current_path_op = entry_list.paths_stack.getLastOrNull();
 
     if (current_path_op) |current_path| {
@@ -74,17 +76,33 @@ fn go_up(entry_list: *EntryList) !void {
     }
 }
 
-fn goBackWrapper(ptr: *anyopaque) anyerror!void {
-    const entry_list: *EntryList = @ptrCast(@alignCast(ptr));
-    try go_back(entry_list);
-}
+const go_back_vtable = ClickHandler.VTable{ .handleClickFn = go_back };
 
-fn goUpWrapper(ptr: *anyopaque) anyerror!void {
-    const entry_list: *EntryList = @ptrCast(@alignCast(ptr));
-    try go_up(entry_list);
-}
+const go_up_vtable = ClickHandler.VTable{ .handleClickFn = go_up };
 
 pub fn render(self: *Self) !void {
+    const go_back_closure = ClickHandler{
+        .ptr = self.entry_list,
+        .vtable = &go_back_vtable,
+    };
+    var go_back_button = Button.init(
+        go_back_closure,
+        "back_button",
+        "BACK",
+        self.entry_list.paths_stack.items.len < 2,
+    );
+
+    const go_up_closure = ClickHandler{
+        .ptr = self.entry_list,
+        .vtable = &go_up_vtable,
+    };
+    var go_up_button = Button.init(
+        go_up_closure,
+        "up_button",
+        "UP",
+        std.mem.eql(u8, self.entry_list.paths_stack.getLast(), "/"),
+    );
+
     cl.UI()(cl.ElementDeclaration{
         .id = .ID("Navigation"),
         .layout = .{
@@ -96,28 +114,8 @@ pub fn render(self: *Self) !void {
         },
         .background_color = theme.background.secondary,
     })({
-        const go_back_closure = ClickHandler{
-            .ptr = self.entry_list,
-            .handleClickFn = goBackWrapper,
-        };
-        var go_back_button = Button.init(
-            go_back_closure,
-            "back_button",
-            "BACK",
-            self.entry_list.paths_stack.items.len < 2,
-        );
         try go_back_button.render();
 
-        const go_up_closure = ClickHandler{
-            .ptr = self.entry_list,
-            .handleClickFn = goUpWrapper,
-        };
-        var go_up_button = Button.init(
-            go_up_closure,
-            "up_button",
-            "UP",
-            std.mem.eql(u8, self.entry_list.paths_stack.getLast(), "/"),
-        );
         try go_up_button.render();
 
         try self.cwd_input.render();

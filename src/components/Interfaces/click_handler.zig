@@ -1,6 +1,12 @@
-ptr: *anyopaque,
-handleClickFn: *const fn (ptr: *anyopaque) anyerror!void,
+const Self = @This();
 
-pub fn handleClick(self: @This()) anyerror!void {
-    try self.handleClickFn(self.ptr);
+ptr: *anyopaque,
+vtable: *const VTable,
+
+pub const VTable = struct {
+    handleClickFn: *const fn (ptr: *anyopaque) anyerror!void,
+};
+
+pub fn handleClick(self: Self) anyerror!void {
+    try self.vtable.handleClickFn(self.ptr);
 }
