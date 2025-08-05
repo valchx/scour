@@ -43,7 +43,6 @@ pub fn deinit(self: Self) void {
 pub fn changeDir(self: *Self, absolute_path: []const u8) !void {
     try self.changeDirWithoutPushingToStack(absolute_path);
 
-    // TODO : Add limit. And unify the stack ?
     try self.paths_stack.append(try self.*._allocator.dupe(u8, absolute_path));
 
     self.*.selection = null;
