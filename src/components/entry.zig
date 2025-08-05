@@ -84,7 +84,7 @@ fn onDoubleClick(self: *Self) !void {
     }
 }
 
-fn onClick(self: *Self) !void {
+fn onClick(self: *Self, index: usize) !void {
     defer self.*.last_click_time = std.time.milliTimestamp();
 
     if (self.last_click_time) |last_click_time| {
@@ -95,7 +95,7 @@ fn onClick(self: *Self) !void {
         }
     }
 
-    self.entryList.selectEntry(self);
+    self.entryList.selectEntry(index);
 }
 
 pub fn render(self: *Self, index: u32) !void {
@@ -110,7 +110,7 @@ pub fn render(self: *Self, index: u32) !void {
         .background_color = self.getBackgroundColor(cl.hovered()),
     })({
         if (rl.isMouseButtonPressed(.left) and cl.pointerOver(id)) {
-            try self.onClick();
+            try self.onClick(index);
         }
 
         self.hovered = cl.pointerOver(id);

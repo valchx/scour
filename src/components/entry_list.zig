@@ -10,11 +10,17 @@ const NavBar = @import("./nav_bar.zig");
 
 const Self = @This();
 
+const Selection = struct {
+    first: usize,
+    last: usize,
+};
+
 _allocator: std.mem.Allocator,
 entries: std.ArrayList(*Entry),
 next_entries: ?std.ArrayList(*Entry) = null,
 paths_stack: std.ArrayList([]const u8),
 nav_bar: ?NavBar = null,
+selection: ?Selection = null,
 
 pub fn init(
     allocator: std.mem.Allocator,
@@ -39,6 +45,8 @@ pub fn changeDir(self: *Self, absolute_path: []const u8) !void {
 
     // TODO : Add limit. And unify the stack ?
     try self.paths_stack.append(try self.*._allocator.dupe(u8, absolute_path));
+
+    self.*.selection = null;
 }
 
 fn deinitEntries(self: Self) void {
@@ -48,12 +56,27 @@ fn deinitEntries(self: Self) void {
     self.entries.deinit();
 }
 
-pub fn selectEntry(self: *Self, entry_to_select: *Entry) void {
-    for (self.*.entries.items) |entry| {
-        entry.*.selected = false;
+pub fn selectEntry(self: *Self, select_index: usize) void {
+    if (rl.isKeyDown(.left_shift) or rl.isKeyDown(.right_shift)) {
+        if (self.selection) |*selection| {
+            selection.*.last = select_index;
+        }
+    } else {
+        self.*.selection = Selection{ .first = select_index, .last = select_index };
     }
 
-    entry_to_select.*.selected = true;
+    if (self.selection) |selection| {
+        const start = if (selection.first < selection.last) selection.first else selection.last;
+        const end = if (selection.first < selection.last) selection.last else selection.first;
+
+        for (self.*.entries.items, 0..) |entry, i| {
+            if (i >= start and i <= end) {
+                entry.*.selected = true;
+            } else {
+                entry.*.selected = false;
+            }
+        }
+    }
 }
 
 pub fn computeNextEntries(self: *Self) void {
