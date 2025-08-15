@@ -15,7 +15,7 @@ _allocator: std.mem.Allocator,
 id_suffix: []const u8,
 
 ptr: *anyopaque,
-vtable: *const VTable,
+vtable: VTable,
 
 const VTable = struct {
     /// Called when the input is focused
@@ -28,7 +28,7 @@ const VTable = struct {
 pub fn init(
     allocator: std.mem.Allocator,
     ptr: *anyopaque,
-    vtable: *const VTable,
+    vtable: VTable,
     id_suffix: []const u8,
     source_buf: ?[]const u8,
 ) Self {

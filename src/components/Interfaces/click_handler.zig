@@ -1,7 +1,7 @@
 const Self = @This();
 
 ptr: *anyopaque,
-vtable: *const VTable,
+vtable: VTable,
 
 pub const VTable = struct {
     handleClickFn: *const fn (ptr: *anyopaque) anyerror!void,

@@ -7,6 +7,9 @@ const theme = @import("../theme.zig");
 const Entry = @import("./entry.zig");
 const ScrollBar = @import("./scroll_bar.zig");
 const NavBar = @import("./nav_bar.zig");
+const ContextMenu = @import("./context_menu.zig");
+
+const ClickHandler = @import("./Interfaces/click_handler.zig");
 
 const Self = @This();
 
@@ -21,6 +24,7 @@ next_entries: ?std.ArrayList(*Entry) = null,
 paths_stack: std.ArrayList([]const u8),
 nav_bar: ?NavBar = null,
 selection: ?Selection = null,
+context_menu_pos: ?cl.Vector2 = null,
 
 pub fn init(
     allocator: std.mem.Allocator,
@@ -56,7 +60,9 @@ fn deinitEntries(self: Self) void {
 }
 
 pub fn selectEntry(self: *Self, select_index: usize) void {
-    if (rl.isKeyDown(.left_shift) or rl.isKeyDown(.right_shift)) {
+    self.*.context_menu_pos = null;
+
+    if ((rl.isKeyDown(.left_shift) or rl.isKeyDown(.right_shift))) {
         if (self.selection) |*selection| {
             selection.*.last = select_index;
         }
@@ -172,6 +178,16 @@ fn changeDirWithoutPushingToStack(
     }
 }
 
+fn copySelection(ptr: *anyopaque) !void {
+    const entry_list: *Self = @ptrCast(@alignCast(ptr));
+    std.debug.print("Copying {}\n", .{entry_list.*.entries.items.len});
+}
+
+fn paste(ptr: *anyopaque) !void {
+    const empty: *void = @ptrCast(@alignCast(ptr));
+    std.debug.print("Pasting {any}\n", .{empty});
+}
+
 pub fn render(self: *Self) !void {
     const outer_container_id = cl.ElementId.ID("EntryListOuterContainer");
     const outer_padding = 16;
@@ -190,6 +206,40 @@ pub fn render(self: *Self) !void {
     })({
         if (self.nav_bar) |*nav_bar| {
             try nav_bar.render();
+        }
+
+        if (rl.isMouseButtonPressed(.right)) {
+            const mouse_pos = rl.getMousePosition();
+            self.*.context_menu_pos = cl.Vector2{
+                .x = mouse_pos.x,
+                .y = mouse_pos.y,
+            };
+        }
+
+        if (self.context_menu_pos) |pos| {
+            // TODO : If click was over the selection, context menu should
+            // include file operations on these (copy, cut, delete, rename, ...)
+            const context_props = ContextMenu.Props{
+                .parent_id = outer_container_id,
+                .pos = pos,
+                .options = &[_]ContextMenu.Option{
+                    .{
+                        .label = "Copy",
+                        .click_handler = .{
+                            .ptr = self,
+                            .vtable = .{ .handleClickFn = copySelection },
+                        },
+                    },
+                    .{
+                        .label = "Paste",
+                        .click_handler = .{
+                            .ptr = self,
+                            .vtable = .{ .handleClickFn = paste },
+                        },
+                    },
+                },
+            };
+            try ContextMenu.render(context_props);
         }
 
         const list_container_id = cl.ElementId.ID("EntryList");

@@ -109,8 +109,10 @@ pub fn render(self: *Self, index: u32) !void {
         },
         .background_color = self.getBackgroundColor(cl.hovered()),
     })({
-        if (rl.isMouseButtonPressed(.left) and cl.pointerOver(id)) {
-            try self.onClick(index);
+        if (cl.pointerOver(id)) {
+            if (rl.isMouseButtonPressed(.left)) {
+                try self.onClick(index);
+            }
         }
 
         self.hovered = cl.pointerOver(id);

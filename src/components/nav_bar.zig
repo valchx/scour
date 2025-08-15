@@ -81,7 +81,7 @@ const go_up_vtable = ClickHandler.VTable{ .handleClickFn = go_up };
 pub fn render(self: *Self) !void {
     const go_back_closure = ClickHandler{
         .ptr = self.entry_list,
-        .vtable = &go_back_vtable,
+        .vtable = go_back_vtable,
     };
     var go_back_button = Button.init(
         go_back_closure,
@@ -92,7 +92,7 @@ pub fn render(self: *Self) !void {
 
     const go_up_closure = ClickHandler{
         .ptr = self.entry_list,
-        .vtable = &go_up_vtable,
+        .vtable = go_up_vtable,
     };
     var go_up_button = Button.init(
         go_up_closure,

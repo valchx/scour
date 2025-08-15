@@ -36,8 +36,7 @@ pub fn textInput(self: *Self) *TextInput {
     self.text_input = TextInput.init(
         self._allocator,
         self,
-        &.{
-            // .on_type_callback = null,
+        .{
             .on_focus_callback = null,
             .on_blur_callback = onBlur,
         },
